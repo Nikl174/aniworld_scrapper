@@ -2,6 +2,7 @@
 import requests
 import sys
 import bs4
+import subprocess
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
@@ -28,7 +29,7 @@ if seasons >= 1:
 prompt = str("Enter Season[1-" + str(seasons) + "]:\n")
 season: int = input(prompt)
 
-page_season = requests.get(URL + "staffel-" + str(season))
+page_season = requests.get(URL + "/staffel-" + str(season))
 soup = BeautifulSoup(page_season.content, "html.parser")
 
 episodes: bs4.element.ResultSet = soup.find_all("tr", itemprop="episode")
@@ -41,8 +42,11 @@ for episode in episodes:
 
 prompt = str("Enter Episode to start from [1-" + str(e_max) + "]:\n")
 start_episode = input(prompt)
+prompt = str("Download all? [y|s|N] (s = single choose):\n")
+download = input(prompt)
+processes = []
 
-for link_id in links:
+for num, link_id in enumerate(links):
     if int(link_id) >= int(start_episode):
         new_url = urljoin(URL, str(links[link_id]))
         episode_page = requests.get(new_url)
@@ -51,8 +55,27 @@ for link_id in links:
             "a", {"class": "watchEpisode"})["href"]
         real_page = requests.get(urljoin(URL, str(next_link)))
         soup = BeautifulSoup(real_page.content, "html.parser")
-        real_link = soup.find("video", id="player").find("source")
-        print(real_link["src"])
+        real_link = soup.find("video", id="player").find("source")["src"]
+        print(real_link)
+        if (download.__eq__("y")):
+            p = subprocess.Popen([
+                "wget", "-O",
+                str("episode-" + str(num + 1) + ".mp4"), real_link
+            ])
+            processes.append(p)
+
+        elif (download.__eq__("s")):
+            prompt = str("Download Episode " + str(num + 1) + "? [y|N]:\n")
+            download_single = input(prompt)
+            if download_single.__eq__("y"):
+                p = subprocess.Popen([
+                    "wget", "-O",
+                    str("episode-" + str(num + 1) + ".mp4"), real_link
+                ])
+                processes.append(p)
+
+for process in processes:
+    process.wait()
 
 # prompt = str("Enter Episode[1-" + str(e_max) + "] (0 for all):\n")
 # episode: int = input(prompt)
